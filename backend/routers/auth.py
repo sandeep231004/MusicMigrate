@@ -25,8 +25,8 @@ SPOTIFY_SCOPE = (
 
 
 def _resolve_spotify_app_credentials(session: dict | None) -> tuple[str, str]:
-    client_id = (session or {}).get("spotify_client_id") or settings.SPOTIFY_CLIENT_ID
-    client_secret = (session or {}).get("spotify_client_secret") or settings.SPOTIFY_CLIENT_SECRET
+    client_id = ((session or {}).get("spotify_client_id") or "").strip()
+    client_secret = ((session or {}).get("spotify_client_secret") or "").strip()
     if not client_id or not client_secret:
         raise HTTPException(
             status_code=400,
@@ -172,6 +172,8 @@ async def set_spotify_config(
 
     set_session(session_id, "spotify_client_id", cid)
     set_session(session_id, "spotify_client_secret", csecret)
+    # Force a fresh OAuth flow if credentials changed.
+    set_session(session_id, "spotify_token_info", None)
     return {"success": True}
 
 
@@ -215,10 +217,7 @@ async def auth_status(request: Request):
     session = get_session(session_id)
     if not session:
         return {"spotify": False, "ytmusic": False, "spotify_configured": False}
-    spotify_configured = bool(
-        (session.get("spotify_client_id") and session.get("spotify_client_secret"))
-        or (settings.SPOTIFY_CLIENT_ID and settings.SPOTIFY_CLIENT_SECRET)
-    )
+    spotify_configured = bool(session.get("spotify_client_id") and session.get("spotify_client_secret"))
     return {
         "spotify": session.get("spotify_token_info") is not None,
         "ytmusic": session.get("ytmusic_authenticated", False),

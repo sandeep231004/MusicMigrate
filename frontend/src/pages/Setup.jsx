@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Youtube, LogOut, Upload, FileJson, Link as LinkIcon } from 'lucide-react'
+import { Youtube, LogOut } from 'lucide-react'
 import {
-  uploadHeaders,
   pasteCookies,
   setSpotifyConfig,
   getSpotifyLoginUrl,
@@ -12,7 +11,6 @@ import StatusBadge from '../components/StatusBadge.jsx'
 
 export default function Setup({ authStatus }) {
   const navigate = useNavigate()
-  const [ytMethod, setYtMethod] = useState('paste')
   const [ytState, setYtState] = useState('idle')
   const [ytError, setYtError] = useState('')
   const [cookieText, setCookieText] = useState('')
@@ -33,25 +31,12 @@ export default function Setup({ authStatus }) {
     }
   }
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setYtState('loading')
-    try {
-      await uploadHeaders(file)
-      setYtState('success')
-    } catch (err) {
-      setYtState('error')
-      setYtError(err.response?.data?.detail || 'Upload failed. Check the file format.')
-    }
-  }
-
   const handleSpotifyLogin = async () => {
     setSpotifyError('')
 
     const cid = spotifyClientId.trim()
     const csecret = spotifyClientSecret.trim()
-    if (!authStatus?.spotify && (!cid || !csecret) && !authStatus?.spotify_configured) {
+    if (!authStatus?.spotify && (!cid || !csecret)) {
       setSpotifyError('Enter your Spotify Client ID and Client Secret first.')
       return
     }
@@ -81,7 +66,7 @@ export default function Setup({ authStatus }) {
             Welcome to MusicMigrate
           </h1>
           <p className="text-lg text-gray-400">
-            Securely transfer your YouTube Music library directly to Spotify.
+            Minimize manual playlist transfer from YouTube Music to Spotify.
           </p>
           {(authStatus?.spotify || authStatus?.ytmusic) && (
             <button
@@ -121,76 +106,37 @@ export default function Setup({ authStatus }) {
               </div>
             ) : (
               <div className="animate-fade-in">
-                {/* Method Tabs */}
-                <div className="flex p-1 bg-gray-950/50 rounded-xl mb-6 w-fit border border-gray-800">
-                  <button
-                    onClick={() => { setYtMethod('paste'); setYtState('idle') }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                      ytMethod === 'paste' 
-                        ? 'bg-gray-800 text-white shadow-sm ring-1 ring-white/10' 
-                        : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/50'
-                    }`}
-                  >
-                    <LinkIcon className="w-4 h-4" /> Paste Cookie
-                  </button>
-                  <button
-                    onClick={() => { setYtMethod('file'); setYtState('idle') }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                      ytMethod === 'file' 
-                        ? 'bg-gray-800 text-white shadow-sm ring-1 ring-white/10' 
-                        : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/50'
-                    }`}
-                  >
-                    <FileJson className="w-4 h-4" /> Upload JSON
-                  </button>
-                </div>
-
-                {ytMethod === 'paste' ? (
-                  <div className="space-y-4">
-                    <div className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/50 text-sm text-gray-300">
-                      <p className="font-medium text-white mb-2">How to get your cookie:</p>
-                      <ol className="list-decimal list-outside ml-4 space-y-1.5 marker:text-gray-500">
-                        <li>Open <a href="https://music.youtube.com" target="_blank" rel="noopener noreferrer" className="text-red-400 hover:underline font-medium">music.youtube.com</a> in a new tab.</li>
-                        <li>Press <kbd className="bg-gray-900 border border-gray-700 px-1.5 py-0.5 rounded text-xs font-mono text-gray-400">F12</kbd> (DevTools), go to the <strong>Network</strong> tab, and refresh.</li>
-                        <li>Click the first request to <span className="text-white">music.youtube.com</span>.</li>
-                        <li>In the <strong>Headers</strong> panel, find <code className="text-red-400 font-mono text-xs bg-gray-950 px-1 py-0.5 rounded">Cookie:</code>.</li>
-                        <li>Right click the value string, copy it, and paste it below.</li>
-                      </ol>
-                    </div>
-                    
+                <div className="space-y-4">
+                  <div className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/50 text-sm text-gray-300">
+                    <p className="font-medium text-white mb-2">How to copy the Cookie value:</p>
+                    <ol className="list-decimal list-outside ml-4 space-y-1.5 marker:text-gray-500">
+                      <li>Open <a href="https://music.youtube.com" target="_blank" rel="noopener noreferrer" className="text-red-400 hover:underline font-medium">music.youtube.com</a> and make sure you are signed in.</li>
+                      <li>Press <kbd className="bg-gray-900 border border-gray-700 px-1.5 py-0.5 rounded text-xs font-mono text-gray-400">F12</kbd>, open the <strong>Network</strong> tab, then refresh the page.</li>
+                      <li>Click a request to <span className="text-white">music.youtube.com</span> (for example one with <code className="text-gray-200 font-mono text-xs">/youtubei/v1/</code> in the URL).</li>
+                      <li>Go to <strong>Headers</strong> and find <strong>Request Headers</strong> -&gt; <code className="text-red-400 font-mono text-xs bg-gray-950 px-1 py-0.5 rounded">cookie</code>.</li>
+                      <li>Copy only the header value and paste it below. Do not include the <code className="text-red-400 font-mono text-xs bg-gray-950 px-1 py-0.5 rounded">cookie:</code> label.</li>
+                    </ol>
+                    <p className="mt-3 text-xs text-gray-400">
+                      The value should be a long <code className="bg-gray-900 border border-gray-700 px-1 py-0.5 rounded font-mono">key=value; key=value; ...</code> string and must include <code className="bg-gray-900 border border-gray-700 px-1 py-0.5 rounded font-mono">__Secure-3PAPISID</code>.
+                    </p>
+                  </div>
+                  
                     <textarea
                       value={cookieText}
                       onChange={(e) => setCookieText(e.target.value)}
-                      placeholder="e.g. VISITOR_INFO1_LIVE=..."
+                      placeholder="Paste full cookie value here (e.g. VISITOR_INFO1_LIVE=...; __Secure-3PAPISID=...)"
                       rows={3}
                       className="w-full bg-gray-950/50 border border-gray-700 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-shadow font-mono resize-none overflow-hidden"
                     />
-                    
-                    <button
-                      onClick={handlePasteCookies}
-                      disabled={!cookieText.trim() || ytState === 'loading'}
-                      className="w-full sm:w-auto bg-gray-100 text-gray-900 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm active:scale-[0.98]"
-                    >
-                      {ytState === 'loading' ? 'Connecting...' : 'Connect YouTube Music'}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                     <div className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/50 text-sm text-gray-300">
-                      <p>Run <code className="bg-gray-900 border border-gray-700 px-1.5 py-0.5 rounded text-red-400 font-mono text-xs">ytmusicapi browser</code> in your terminal, follow the CLI prompts to paste your cURL headers, and upload the resulting <code className="text-gray-200 font-mono">headers_auth.json</code> file.</p>
-                    </div>
-                    
-                    <label className="flex items-center justify-center w-full h-32 px-4 transition border-2 border-gray-700 border-dashed rounded-xl appearance-none cursor-pointer hover:border-gray-500 hover:bg-gray-800/30 focus:outline-none">
-                      <span className="flex flex-col items-center space-y-2">
-                        <Upload className="w-6 h-6 text-gray-400" />
-                        <span className="font-medium text-gray-300">
-                          Drop headers_auth.json here or click to browse
-                        </span>
-                      </span>
-                      <input type="file" name="file_upload" className="hidden" accept=".json" onChange={handleFileUpload} />
-                    </label>
-                  </div>
-                )}
+                  
+                  <button
+                    onClick={handlePasteCookies}
+                    disabled={!cookieText.trim() || ytState === 'loading'}
+                    className="w-full sm:w-auto bg-gray-100 text-gray-900 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm active:scale-[0.98]"
+                  >
+                    {ytState === 'loading' ? 'Connecting...' : 'Connect YouTube Music'}
+                  </button>
+                </div>
 
                 {ytState === 'error' && (
                   <p className="mt-4 text-red-400 text-sm flex items-center gap-2 bg-red-500/10 p-3 rounded-lg border border-red-500/20">
@@ -232,31 +178,30 @@ export default function Setup({ authStatus }) {
                 <div className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/50 text-sm text-gray-300">
                   <p>In order to create playlists, you must create a free Spotify Developer app at <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-green-400 hover:underline font-medium">developer.spotify.com</a>.</p>
                   <p className="mt-2 text-gray-400">Set the Redirect URI to <code className="bg-gray-900 border border-gray-700 px-1.5 py-0.5 rounded font-mono text-xs">http://127.0.0.1:8000/auth/callback</code>.</p>
+                  <p className="mt-2 text-gray-400">Your Spotify account must be Premium for playlist write access.</p>
                 </div>
 
-                {!authStatus?.spotify_configured && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Client ID</label>
-                      <input
-                        value={spotifyClientId}
-                        onChange={(e) => setSpotifyClientId(e.target.value)}
-                        placeholder="Client ID..."
-                        className="w-full bg-gray-950/50 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500 transition-shadow font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Client Secret</label>
-                      <input
-                        type="password"
-                        value={spotifyClientSecret}
-                        onChange={(e) => setSpotifyClientSecret(e.target.value)}
-                        placeholder="Client Secret..."
-                        className="w-full bg-gray-950/50 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500 transition-shadow font-mono"
-                      />
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Client ID</label>
+                    <input
+                      value={spotifyClientId}
+                      onChange={(e) => setSpotifyClientId(e.target.value)}
+                      placeholder="Client ID..."
+                      className="w-full bg-gray-950/50 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500 transition-shadow font-mono"
+                    />
                   </div>
-                )}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Client Secret</label>
+                    <input
+                      type="password"
+                      value={spotifyClientSecret}
+                      onChange={(e) => setSpotifyClientSecret(e.target.value)}
+                      placeholder="Client Secret..."
+                      className="w-full bg-gray-950/50 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500 transition-shadow font-mono"
+                    />
+                  </div>
+                </div>
 
                 {spotifyError && (
                   <p className="text-red-400 text-sm flex items-center gap-2 bg-red-500/10 p-3 rounded-lg border border-red-500/20">

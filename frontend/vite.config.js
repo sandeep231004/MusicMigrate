@@ -5,9 +5,16 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/auth': 'http://localhost:8000',
-      '/youtube': 'http://localhost:8000',
-      '/spotify': 'http://localhost:8000',
+      // SSE endpoint — must be listed first (most specific match wins).
+      // Disable compression so the stream is not buffered by the proxy.
+      '/spotify/transfer': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        headers: { 'Accept-Encoding': 'identity' },
+      },
+      '/auth': 'http://127.0.0.1:8000',
+      '/youtube': 'http://127.0.0.1:8000',
+      '/spotify': 'http://127.0.0.1:8000',
     },
   },
 })

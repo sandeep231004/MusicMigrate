@@ -30,7 +30,6 @@ export default function Transfer() {
   })
 
   const logsEndRef = useRef(null)
-  const startedRef = useRef(false)
   const completedItemsRef = useRef(0)
 
   useEffect(() => {
@@ -42,25 +41,92 @@ export default function Transfer() {
       navigate('/library')
       return
     }
-    if (startedRef.current) return
-    startedRef.current = true
 
+    // Reset completed count on each mount (handles React StrictMode double-mount)
+    completedItemsRef.current = 0
     sessionStorage.setItem(TRANSFER_ITEMS_STORAGE_KEY, JSON.stringify(items))
-    setProgress((p) => ({
-      ...p,
+    setProgress({
       status: 'active',
+      overall_progress: 0,
+      current_item: null,
+      item_progress: 0,
+      total_tracks_processed: 0,
+      total_tracks_matched: 0,
+      total_tracks_unmatched: 0,
       logs: [{ type: 'info', msg: 'Starting transfer process...' }],
-    }))
+    })
 
     const eventSource = createTransferEventSource(items)
 
     eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data)
+      let data
+      try {
+        data = JSON.parse(event.data)
+      } catch {
+        return
+      }
 
       setProgress((prev) => {
         const next = { ...prev }
 
         switch (data.event) {
+          case 'item_start': {
+            const item = data.item || {}
+            const itemType = item.type || 'item'
+            next.current_item = { name: item.name || 'Unknown', type: itemType, total: item.total || 0 }
+            next.item_progress = 0
+            next.logs = [
+              ...prev.logs,
+              { type: 'info', msg: `Processing ${itemType}: ${item.name || 'Unknown'}` },
+            ]
+            break
+          }
+
+          case 'track_processed':
+            if (typeof data.item_progress === 'number') {
+              next.item_progress = data.item_progress
+            }
+            if (typeof data.overall_progress === 'number') {
+              next.overall_progress = data.overall_progress
+            }
+            if (data.stats) {
+              next.total_tracks_processed = data.stats.processed ?? prev.total_tracks_processed
+              next.total_tracks_matched = data.stats.matched ?? prev.total_tracks_matched
+              next.total_tracks_unmatched = data.stats.unmatched ?? prev.total_tracks_unmatched
+            } else {
+              next.total_tracks_processed = prev.total_tracks_processed + 1
+            }
+            break
+
+          case 'item_complete': {
+            const item = data.item || {}
+            completedItemsRef.current += 1
+            next.item_progress = 100
+            next.overall_progress =
+              typeof data.overall_progress === 'number'
+                ? data.overall_progress
+                : (completedItemsRef.current / Math.max(items.length, 1)) * 100
+            if (data.stats) {
+              next.total_tracks_processed = data.stats.processed ?? prev.total_tracks_processed
+              next.total_tracks_matched = data.stats.matched ?? prev.total_tracks_matched
+              next.total_tracks_unmatched = data.stats.unmatched ?? prev.total_tracks_unmatched
+            }
+            next.logs = [
+              ...prev.logs,
+              { type: 'info', msg: `Completed ${item.type || 'item'}: ${item.name || 'Unknown'}` },
+            ]
+            break
+          }
+
+          case 'transfer_complete':
+            next.status = 'completed'
+            next.overall_progress = 100
+            next.item_progress = 100
+            next.logs = [...prev.logs, { type: 'success', msg: 'Transfer complete.' }]
+            sessionStorage.removeItem(TRANSFER_ITEMS_STORAGE_KEY)
+            eventSource.close()
+            break
+
           case 'playlist_start':
             next.current_item = { name: data.item_name, type: 'playlist', total: data.total || 0 }
             next.item_progress = 0
@@ -144,16 +210,20 @@ export default function Transfer() {
     eventSource.onerror = () => {
       eventSource.close()
       setProgress((prev) => ({
-        ...prev,
-        status: 'error',
-        logs: [...prev.logs, { type: 'error', msg: 'Connection to server lost.' }],
+        ...(prev.status === 'completed'
+          ? prev
+          : {
+              ...prev,
+              status: 'error',
+              logs: [...prev.logs, { type: 'error', msg: 'Connection to server lost.' }],
+            }),
       }))
     }
 
     return () => {
       eventSource.close()
     }
-  }, [items, navigate])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const getLogStyle = (type) => {
     switch (type) {
