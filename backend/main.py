@@ -1,0 +1,42 @@
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from config import settings
+from routers import auth, spotify, youtube
+from session_store import create_session, get_session
+
+
+class SessionMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        session_id = request.cookies.get("mm_session")
+        if not session_id or get_session(session_id) is None:
+            session_id = create_session()
+            request.state.session_id = session_id
+            response = await call_next(request)
+            response.set_cookie(
+                "mm_session",
+                session_id,
+                httponly=True,
+                samesite="lax",
+                max_age=86400 * 7,
+            )
+            return response
+        request.state.session_id = session_id
+        return await call_next(request)
+
+
+app = FastAPI(title="MusicMigrate API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.FRONTEND_URL],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.add_middleware(SessionMiddleware)
+
+app.include_router(auth.router, prefix="/auth")
+app.include_router(youtube.router, prefix="/youtube")
+app.include_router(spotify.router, prefix="/spotify")
