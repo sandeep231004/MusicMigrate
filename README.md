@@ -1,35 +1,33 @@
 # MusicMigrate
 
-MusicMigrate is built to minimize manual playlist transfer work from YouTube Music to Spotify.
-It automates matching and transfer while still allowing manual review when needed.
-It runs locally on your machine using FastAPI + React.
+MusicMigrate minimizes manual transfer work from YouTube Music to Spotify.
+It migrates playlists and albums using metadata matching, then gives manual review for unmatched tracks where you can search and add songs directly to Spotify.
 
-## Features
+## What It Does
 
-- Transfer YouTube Music playlists to Spotify playlists.
-- Save YouTube Music library albums to Spotify saved albums.
-- Automatic fuzzy matching with manual review for unmatched tracks.
-- Real-time transfer progress via server-sent events (SSE).
-- Per-user Spotify app credentials from the Setup page (open-source friendly).
-- Local session persistence in `backend/.runtime/sessions.json`.
+- Transfers YouTube Music playlists to Spotify playlists.
+- Saves YouTube Music library albums to Spotify saved albums.
+- Uses fuzzy matching for track search and duplicate-safe adds.
+- Streams real-time transfer progress to the UI.
+- Supports user-owned Spotify app credentials (open-source friendly).
 
 ## Requirements
 
 - Python 3.12+
 - Node.js 18+
 - `uv` for backend dependency management
-- Spotify Premium account (required for playlist write operations via Spotify Web API)
+- Spotify Premium account (required for playlist write operations)
 
-## Quick Start
+## Local Development
 
-1. Clone the repository.
+1. Clone the repo.
 
 ```bash
 git clone https://github.com/sandeep231004/MusicMigrate.git
 cd MusicMigrate
 ```
 
-2. Prepare backend environment.
+2. Create backend env file.
 
 ```bash
 cp .env.example backend/.env
@@ -43,7 +41,7 @@ uv sync
 uv run uvicorn main:app --reload
 ```
 
-4. Start frontend in a new terminal.
+4. Start frontend in another terminal.
 
 ```bash
 cd frontend
@@ -54,79 +52,87 @@ npm run dev
 Frontend: `http://localhost:5173`  
 Backend: `http://127.0.0.1:8000`
 
-## Spotify Setup (Required Per User)
+## How to Use MusicMigrate
 
-Each user should use their own Spotify Developer app:
+1. Open MusicMigrate in your browser.
+2. Complete authentication for YouTube Music and Spotify.
+3. Go to Library, select playlists/albums, and start transfer.
+
+## Authentication
+
+### Spotify Authentication
 
 1. Open <https://developer.spotify.com/dashboard>.
-2. Create an app.
+2. Create your own Spotify Developer app.
 3. Add this Redirect URI exactly:
 
 ```text
-http://127.0.0.1:8000/auth/callback
+https://musicmigrate-production.up.railway.app/auth/callback
 ```
 
-4. Copy Client ID and Client Secret.
-5. Enter them on the app Setup page before clicking Connect to Spotify.
-6. Sign in with the same Spotify account and approve access.
+4. Copy that app's Client ID and Client Secret.
+5. Paste them in Setup and click **Connect to Spotify**.
+6. Approve access on Spotify.
 
-Important:
+Notes:
 
-- Spotify account must be Premium.
-- Credentials are not read from `.env` for user login flow.
-- Every user must provide their own credentials in UI.
+- Redirect URI must match exactly (scheme, host, path, and trailing slash behavior).
+- Every user must add this callback URI in their own Spotify app dashboard.
+- Credentials are entered per-user in the UI (not shared through `.env`).
+- For local development, use `http://127.0.0.1:8000/auth/callback` instead.
 
-## YouTube Music Setup
+### YouTube Music Authentication (Cookie Method)
 
 1. Open <https://music.youtube.com> and sign in.
-2. Open DevTools (`F12`) and go to the **Network** tab.
+2. Open DevTools (`F12`) -> **Network**.
 3. Refresh the page.
-4. Click any request to `music.youtube.com` (for example a URL containing `/youtubei/v1/`).
+4. Click a request to `music.youtube.com` (for example with `/youtubei/v1/` in URL).
 5. In **Headers** -> **Request Headers**, find `cookie`.
-6. Copy only the cookie value and paste it in Setup, then click **Connect YouTube Music**.
+6. Copy only the cookie value and paste it in Setup.
 
-Important:
+Rules:
 
-- Do not include the `cookie:` label, only the value.
+- Do not include `cookie:` label, only the value.
 - Keep the full `key=value; key=value; ...` string.
-- The cookie must include `__Secure-3PAPISID` (or `SAPISID`).
+- It must include `__Secure-3PAPISID` (or `SAPISID`).
 
-## Configuration
+## Transfer Logic (High Level)
 
-`backend/.env` supports:
+- For each selected playlist/album, backend fetches source metadata from YouTube Music.
+- For playlists, each track is searched on Spotify using strict query first, then broad query fallback.
+- Fuzzy score threshold decides auto-match vs unmatched bucket.
+- Matched tracks are added in batches, skipping tracks already present.
+- Unmatched tracks are saved for manual matching in the UI.
 
-- `SPOTIFY_REDIRECT_URI` (default: `http://127.0.0.1:8000/auth/callback`)
-- `FRONTEND_URL` (default: `http://localhost:5173`)
+## Configuration Reference
 
-If your frontend runs on another port, update `FRONTEND_URL`.
+`backend/.env` (copy from `.env.example`):
 
-## Project Structure
-
-```text
-backend/
-  main.py
-  config.py
-  session_store.py
-  routers/
-  services/
-frontend/
-  src/
-    pages/
-    components/
-```
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `ENVIRONMENT` | `development` or `production` | `development` |
+| `SPOTIFY_REDIRECT_URI` | Must match Spotify app dashboard | `http://127.0.0.1:8000/auth/callback` |
+| `FRONTEND_URL` | Frontend origin for post-auth redirect | `http://localhost:5173` |
+| `FRONTEND_URLS` | Comma-separated allowed CORS origins | `http://localhost:5173,http://127.0.0.1:5173` |
 
 ## Troubleshooting
 
-- `Spotify not authenticated`: reconnect Spotify from Setup.
-- `Spotify app credentials not configured`: enter Client ID and Client Secret in Setup.
-- `YouTube Music not authenticated`: refresh and paste new cookies.
-- `Cookie is missing '__Secure-3PAPISID'`: copy the full cookie from a `music.youtube.com` network request while signed in.
-- Spotify callback redirect mismatch: check `FRONTEND_URL` in `backend/.env`.
-- Transfer errors: inspect backend terminal logs first.
+- `INVALID_CLIENT: Invalid redirect URI`:
+  - Confirm the Redirect URI in your Spotify app dashboard matches your backend URL exactly.
+    Hosted: `https://musicmigrate-production.up.railway.app/auth/callback`
+    Local: `http://127.0.0.1:8000/auth/callback`
+- `Spotify app credentials not configured`:
+  - Enter Client ID and Client Secret in Setup before Connect.
+- `YouTube Music not authenticated`:
+  - Recopy cookie from a fresh signed-in request.
+- `Cookie is missing '__Secure-3PAPISID'`:
+  - You copied an incomplete cookie value; copy full Request Headers cookie.
+- Transfer hangs or errors:
+  - Check backend logs first (`/spotify/transfer` stream events and exceptions).
 
 ## Contributing
 
-Pull requests, bug reports, and suggestions are welcome.  
+Pull requests, bug reports, and suggestions are welcome.
 If you have ideas for new features or improvements, open an issue or PR.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.

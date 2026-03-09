@@ -10,7 +10,6 @@ def get_client(headers_path: str) -> YTMusic:
     try:
         with open(headers_path, encoding="utf-8") as f:
             data = json.load(f)
-        print(f"[ytmusic] Loading auth file, keys: {list(data.keys())}")
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Could not read auth file: {e}")
 

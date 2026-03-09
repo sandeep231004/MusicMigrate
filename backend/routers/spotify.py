@@ -180,7 +180,7 @@ async def _transfer_stream(items: list[TransferItem], session_id: str, session: 
         yield sse({"event": "transfer_complete"})
 
     except Exception as e:
-        yield sse({"event": "error", "message": str(e)})
+        yield sse({"event": "error", "message": "Transfer failed. Check backend logs for details."})
 
 
 @router.get("/transfer")
@@ -196,8 +196,8 @@ async def transfer(items: str, request: Request):
 
     try:
         parsed_items = [TransferItem(**i) for i in json.loads(items)]
-    except (json.JSONDecodeError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=f"Invalid items parameter: {e}")
+    except (json.JSONDecodeError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid items parameter")
 
     return StreamingResponse(
         _transfer_stream(parsed_items, session_id, session),
