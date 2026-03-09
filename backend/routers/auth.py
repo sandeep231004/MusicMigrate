@@ -219,12 +219,18 @@ async def auth_status(request: Request):
     session_id = request.state.session_id
     session = get_session(session_id)
     if not session:
-        return {"spotify": False, "ytmusic": False, "spotify_configured": False}
+        return {
+            "spotify": False,
+            "ytmusic": False,
+            "spotify_configured": False,
+            "spotify_redirect_uri": settings.SPOTIFY_REDIRECT_URI,
+        }
     spotify_configured = bool(session.get("spotify_client_id") and session.get("spotify_client_secret"))
     return {
         "spotify": session.get("spotify_token_info") is not None,
         "ytmusic": session.get("ytmusic_authenticated", False),
         "spotify_configured": spotify_configured,
+        "spotify_redirect_uri": settings.SPOTIFY_REDIRECT_URI,
     }
 
 

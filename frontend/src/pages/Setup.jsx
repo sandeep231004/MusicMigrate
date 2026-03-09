@@ -11,6 +11,8 @@ import StatusBadge from '../components/StatusBadge.jsx'
 
 export default function Setup({ authStatus }) {
   const navigate = useNavigate()
+  const spotifyRedirectUri =
+    authStatus?.spotify_redirect_uri || 'https://musicmigrate-production.up.railway.app/auth/callback'
   const [ytState, setYtState] = useState('idle')
   const [ytError, setYtError] = useState('')
   const [cookieText, setCookieText] = useState('')
@@ -177,7 +179,7 @@ export default function Setup({ authStatus }) {
               <div className="animate-fade-in space-y-5">
                 <div className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/50 text-sm text-gray-300">
                   <p>In order to create playlists, you must create a free Spotify Developer app at <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-green-400 hover:underline font-medium">developer.spotify.com</a>.</p>
-                  <p className="mt-2 text-gray-400">Set the Redirect URI to <code className="bg-gray-900 border border-gray-700 px-1.5 py-0.5 rounded font-mono text-xs">http://127.0.0.1:8000/auth/callback</code>.</p>
+                  <p className="mt-2 text-gray-400">Set the Redirect URI to <code className="bg-gray-900 border border-gray-700 px-1.5 py-0.5 rounded font-mono text-xs">{spotifyRedirectUri}</code>.</p>
                   <p className="mt-2 text-gray-400">Your Spotify account must be Premium for playlist write access.</p>
                 </div>
 
