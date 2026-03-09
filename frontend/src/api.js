@@ -1,7 +1,11 @@
 import axios from 'axios'
 
+// In dev: empty string (Vite proxy handles it).
+// In prod: full Railway backend URL, e.g. "https://musicmigrate-api.up.railway.app"
+const API_URL = import.meta.env.VITE_API_URL || ''
+
 const api = axios.create({
-  baseURL: '',
+  baseURL: API_URL,
   withCredentials: true,
 })
 
@@ -44,6 +48,6 @@ export const manualMatch = (spotifyTrackId, playlistId) =>
 
 export const createTransferEventSource = (items) =>
   new EventSource(
-    '/spotify/transfer?items=' + encodeURIComponent(JSON.stringify(items)),
+    `${API_URL}/spotify/transfer?items=${encodeURIComponent(JSON.stringify(items))}`,
     { withCredentials: true },
   )

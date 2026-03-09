@@ -14,11 +14,14 @@ class SessionMiddleware(BaseHTTPMiddleware):
             session_id = create_session()
             request.state.session_id = session_id
             response = await call_next(request)
+            # Cross-domain (Vercel→Railway) requires SameSite=None + Secure.
+            # Local dev uses SameSite=Lax (no HTTPS needed).
             response.set_cookie(
                 "mm_session",
                 session_id,
                 httponly=True,
-                samesite="lax",
+                samesite="none" if settings.is_production else "lax",
+                secure=settings.is_production,
                 max_age=86400 * 7,
             )
             return response

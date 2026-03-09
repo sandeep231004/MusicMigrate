@@ -3,8 +3,6 @@ import os
 import tempfile
 import time
 from hashlib import sha1
-from http.cookies import SimpleCookie
-
 import spotipy.oauth2
 from fastapi import APIRouter, Body, File, HTTPException, Request, UploadFile
 from fastapi.responses import RedirectResponse
@@ -115,11 +113,16 @@ async def paste_cookies(request: Request, cookie: str = Body(..., embed=True)):
     if not cookie:
         raise HTTPException(status_code=400, detail="Cookie string is empty")
 
-    # ytmusicapi browser auth requires __Secure-3PAPISID to compute the Authorization header
-    parsed = SimpleCookie()
-    parsed.load(cookie)
-    sapisid_morsel = parsed.get("__Secure-3PAPISID") or parsed.get("SAPISID")
-    if not sapisid_morsel:
+    # Parse cookie string manually — SimpleCookie chokes on __Secure-* names.
+    cookie_pairs: dict[str, str] = {}
+    for part in cookie.split(";"):
+        part = part.strip()
+        if "=" in part:
+            key, _, value = part.partition("=")
+            cookie_pairs[key.strip()] = value.strip()
+
+    sapisid = cookie_pairs.get("__Secure-3PAPISID") or cookie_pairs.get("SAPISID")
+    if not sapisid:
         raise HTTPException(
             status_code=400,
             detail=(
@@ -129,7 +132,7 @@ async def paste_cookies(request: Request, cookie: str = Body(..., embed=True)):
         )
 
     origin = "https://music.youtube.com"
-    authorization = _compute_sapisidhash(sapisid_morsel.value, origin)
+    authorization = _compute_sapisidhash(sapisid, origin)
 
     headers_data = {
         "Cookie": cookie,

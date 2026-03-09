@@ -13,10 +13,15 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
     )
 
+    ENVIRONMENT: str = "development"  # "development" or "production"
     SPOTIFY_CLIENT_ID: str = ""
     SPOTIFY_CLIENT_SECRET: str = ""
     SPOTIFY_REDIRECT_URI: str = "http://127.0.0.1:8000/auth/callback"
     FRONTEND_URL: str = "http://localhost:5173"
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT == "production"
 
 
 settings = Settings()
