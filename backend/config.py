@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     SPOTIFY_CLIENT_SECRET: str = ""
     SPOTIFY_REDIRECT_URI: str = "http://127.0.0.1:8000/auth/callback"
     FRONTEND_URL: str = "http://localhost:5173"
+    FRONTEND_URLS: str = "http://localhost:5173,http://127.0.0.1:5173"
+    FRONTEND_ORIGIN_REGEX: str = r"https://.*\.vercel\.app"
 
     @property
     def is_production(self) -> bool:

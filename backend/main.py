@@ -7,6 +7,18 @@ from routers import auth, spotify, youtube
 from session_store import create_session, get_session
 
 
+def _build_allowed_origins() -> list[str]:
+    origins: set[str] = set()
+    if settings.FRONTEND_URL:
+        origins.add(settings.FRONTEND_URL.strip())
+    if settings.FRONTEND_URLS:
+        for origin in settings.FRONTEND_URLS.split(","):
+            cleaned = origin.strip()
+            if cleaned:
+                origins.add(cleaned)
+    return sorted(origins)
+
+
 class SessionMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         session_id = request.cookies.get("mm_session")
@@ -33,7 +45,8 @@ app = FastAPI(title="MusicMigrate API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL],
+    allow_origins=_build_allowed_origins(),
+    allow_origin_regex=(settings.FRONTEND_ORIGIN_REGEX or None),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
