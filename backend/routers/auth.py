@@ -22,6 +22,11 @@ SPOTIFY_SCOPE = (
 )
 
 
+def _spotify_redirect_uri() -> str:
+    # Trim accidental whitespace/newlines from deployment env values.
+    return (settings.SPOTIFY_REDIRECT_URI or "").strip()
+
+
 def _resolve_spotify_app_credentials(session: dict | None) -> tuple[str, str]:
     client_id = ((session or {}).get("spotify_client_id") or "").strip()
     client_secret = ((session or {}).get("spotify_client_secret") or "").strip()
@@ -41,7 +46,7 @@ def get_oauth(session: dict | None) -> spotipy.oauth2.SpotifyOAuth:
     return spotipy.oauth2.SpotifyOAuth(
         client_id=client_id,
         client_secret=client_secret,
-        redirect_uri=settings.SPOTIFY_REDIRECT_URI,
+        redirect_uri=_spotify_redirect_uri(),
         scope=SPOTIFY_SCOPE,
         cache_handler=MemoryCacheHandler(),
         open_browser=False,
@@ -190,14 +195,14 @@ async def spotify_login(request: Request):
     sp_oauth = spotipy.oauth2.SpotifyOAuth(
         client_id=client_id,
         client_secret=client_secret,
-        redirect_uri=settings.SPOTIFY_REDIRECT_URI,
+        redirect_uri=_spotify_redirect_uri(),
         scope=SPOTIFY_SCOPE,
         cache_handler=MemoryCacheHandler(),
         open_browser=False,
         show_dialog=True,
     )
     auth_url = sp_oauth.get_authorize_url(state=session_id)
-    return {"auth_url": auth_url}
+    return {"auth_url": auth_url, "redirect_uri": _spotify_redirect_uri()}
 
 
 @router.get("/callback")
@@ -223,14 +228,14 @@ async def auth_status(request: Request):
             "spotify": False,
             "ytmusic": False,
             "spotify_configured": False,
-            "spotify_redirect_uri": settings.SPOTIFY_REDIRECT_URI,
+            "spotify_redirect_uri": _spotify_redirect_uri(),
         }
     spotify_configured = bool(session.get("spotify_client_id") and session.get("spotify_client_secret"))
     return {
         "spotify": session.get("spotify_token_info") is not None,
         "ytmusic": session.get("ytmusic_authenticated", False),
         "spotify_configured": spotify_configured,
-        "spotify_redirect_uri": settings.SPOTIFY_REDIRECT_URI,
+        "spotify_redirect_uri": _spotify_redirect_uri(),
     }
 
 
