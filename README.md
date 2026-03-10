@@ -139,4 +139,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
 ## License
 
-**MIT**
+MIT
